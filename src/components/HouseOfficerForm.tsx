@@ -31,14 +31,15 @@ interface HouseOfficerFormProps {
 }
 
 const units = [
-  "Cardiology",
-  "Endocrinology", 
-  "Gastroenterology",
+  "Cardiology 1",
+  "Cardiology 2",
   "Nephrology",
+  "Neurology",
+  "Endocrinology",
   "Pulmonology",
-  "Rheumatology",
-  "Infectious Diseases",
-  "General Internal Medicine"
+  "Gastroenterology",
+  "Infectious Disease/Dermatology",
+  "Rheumatology"
 ];
 
 const HouseOfficerForm = ({ onSubmit }: HouseOfficerFormProps) => {
@@ -53,7 +54,12 @@ const HouseOfficerForm = ({ onSubmit }: HouseOfficerFormProps) => {
 
     const newOfficer: HouseOfficer = {
       id: Math.random().toString(36).substr(2, 9),
-      ...values,
+      fullName: values.fullName,
+      gender: values.gender,
+      dateSignedIn: values.dateSignedIn,
+      unitAssigned: values.unitAssigned,
+      clinicalPresentationTopic: values.clinicalPresentationTopic,
+      clinicalPresentationDate: values.clinicalPresentationDate,
       expectedSignOutDate,
     };
 
