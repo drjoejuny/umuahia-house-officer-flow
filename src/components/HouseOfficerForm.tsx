@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Calendar as CalendarIconLucide } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,11 +43,12 @@ const units = [
 ];
 
 const HouseOfficerForm = ({ onSubmit }: HouseOfficerFormProps) => {
+  const [lastRegisteredOfficer, setLastRegisteredOfficer] = useState<HouseOfficer | null>(null);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
   });
 
-  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+  const handleSubmit = (values: z.infer<typeof formSchema>) => {
     // Calculate expected sign-out date (3 months after sign-in)
     const expectedSignOutDate = new Date(values.dateSignedIn);
     expectedSignOutDate.setMonth(expectedSignOutDate.getMonth() + 3);
@@ -63,36 +64,51 @@ const HouseOfficerForm = ({ onSubmit }: HouseOfficerFormProps) => {
       expectedSignOutDate,
     };
 
+    // Save locally and reset form
+    onSubmit(newOfficer);
+    setLastRegisteredOfficer(newOfficer);
+    form.reset();
+    
+    toast({
+      title: "Success!",
+      description: "House officer registered successfully.",
+    });
+  };
+
+  const handleAddToCalendar = async () => {
+    if (!lastRegisteredOfficer) {
+      toast({
+        title: "No Officer Registered",
+        description: "Please register a house officer first before adding to calendar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       // Create calendar events
       await createCalendarEvent(
-        `Clinical Presentation: ${values.clinicalPresentationTopic}`,
-        values.clinicalPresentationDate,
-        `Clinical presentation by ${values.fullName} in ${values.unitAssigned} unit`
+        `Clinical Presentation: ${lastRegisteredOfficer.clinicalPresentationTopic}`,
+        lastRegisteredOfficer.clinicalPresentationDate,
+        `Clinical presentation by ${lastRegisteredOfficer.fullName} in ${lastRegisteredOfficer.unitAssigned} unit`
       );
 
       await createCalendarEvent(
-        `Sign-out: ${values.fullName}`,
-        expectedSignOutDate,
-        `Expected sign-out date for ${values.fullName} from ${values.unitAssigned} unit`
+        `Sign-out: ${lastRegisteredOfficer.fullName}`,
+        lastRegisteredOfficer.expectedSignOutDate,
+        `Expected sign-out date for ${lastRegisteredOfficer.fullName} from ${lastRegisteredOfficer.unitAssigned} unit`
       );
 
-      onSubmit(newOfficer);
-      form.reset();
-      
       toast({
-        title: "Success!",
-        description: "House officer registered successfully and calendar events created.",
+        title: "Calendar Events Created!",
+        description: "Google Calendar events have been created for the presentation and sign-out dates.",
       });
     } catch (error) {
       console.error("Error creating calendar events:", error);
-      onSubmit(newOfficer);
-      form.reset();
-      
       toast({
-        title: "Registered",
-        description: "House officer registered. Note: Calendar events require Google Calendar permission.",
-        variant: "default",
+        title: "Calendar Error",
+        description: "There was an issue creating the calendar events. Please try again.",
+        variant: "destructive",
       });
     }
   };
@@ -246,7 +262,10 @@ const HouseOfficerForm = ({ onSubmit }: HouseOfficerFormProps) => {
                     mode="single"
                     selected={field.value}
                     onSelect={field.onChange}
-                    disabled={(date) => date < new Date()}
+                    disabled={(date) => {
+                      const signInDate = form.getValues("dateSignedIn");
+                      return signInDate ? date < signInDate : date < new Date();
+                    }}
                     initialFocus
                     className={cn("p-3 pointer-events-auto")}
                   />
@@ -257,9 +276,23 @@ const HouseOfficerForm = ({ onSubmit }: HouseOfficerFormProps) => {
           )}
         />
 
-        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
-          Register House Officer
-        </Button>
+        <div className="space-y-3">
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700">
+            Register House Officer
+          </Button>
+          
+          {lastRegisteredOfficer && (
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="w-full border-green-600 text-green-600 hover:bg-green-50"
+              onClick={handleAddToCalendar}
+            >
+              <CalendarIconLucide className="mr-2 h-4 w-4" />
+              Add to Google Calendar
+            </Button>
+          )}
+        </div>
       </form>
     </Form>
   );
